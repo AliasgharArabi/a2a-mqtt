@@ -11,6 +11,7 @@ import axios from "axios";
 const PORT = Number(process.env.PORT) || 3000;
 /** Must match the broker `client/test_client.py` and `mqtt_gateway.py` use (default 1883). */
 const MQTT_PORT = Number(process.env.UI_MQTT_PORT) || 1883;
+const MQTT_ORG = process.env.MQTT_ORG || "demo-org";
 const SKIP_EMBEDDED_BROKER =
   process.env.EMBEDDED_MQTT === "0" || process.env.EMBEDDED_MQTT === "false";
 /** Strands Python A2AServer (JSON-RPC POST /) */
@@ -150,9 +151,9 @@ async function startServer() {
 
   mqttClient.on("connect", () => {
     console.log(`Node MQTT gateway connected to broker at 127.0.0.1:${MQTT_PORT}`);
-    mqttClient!.subscribe("demo-org/orchestrator/requests");
+    mqttClient!.subscribe(`${MQTT_ORG}/orchestrator/requests`);
     mqttClient!.publish(
-      "discovery/demo-org/orchestrator",
+      `discovery/${MQTT_ORG}/orchestrator`,
       JSON.stringify({
         agent_id: "orchestrator",
         name: "Research+Writer Orchestrator",
@@ -163,7 +164,7 @@ async function startServer() {
   });
 
   mqttClient.on("message", async (topic, message) => {
-    if (topic !== "demo-org/orchestrator/requests") return;
+    if (topic !== `${MQTT_ORG}/orchestrator/requests`) return;
     const payload = JSON.parse(message.toString()) as { input?: string; task_id?: string };
     const { input, task_id: taskId } = payload;
     if (!input) {
@@ -175,7 +176,7 @@ async function startServer() {
     if (!r.ok) {
       addLog("Gateway", r.error || "Orchestrator failed", "error");
       mqttClient!.publish(
-        "demo-org/orchestrator/results",
+        `${MQTT_ORG}/orchestrator/results`,
         JSON.stringify({
           task_id: taskId || "unknown",
           status: "error",
@@ -187,7 +188,7 @@ async function startServer() {
       return;
     }
     mqttClient!.publish(
-      "demo-org/orchestrator/results",
+      `${MQTT_ORG}/orchestrator/results`,
       JSON.stringify({
         task_id: taskId || "unknown",
         status: "completed",
@@ -195,11 +196,25 @@ async function startServer() {
       }),
       { qos: 1 }
     );
-    addLog("Gateway", "Published result to demo-org/orchestrator/results", "success");
+    addLog("Gateway", `Published result to ${MQTT_ORG}/orchestrator/results`, "success");
   });
 
   app.get("/api/logs", (_req, res) => {
     res.json(logs);
+  });
+
+  /** In-process progress from Python orchestrator (HTTP; see transport/agent_progress.py). */
+  app.get("/api/agent-progress", (_req, res) => {
+    res.json({ ok: true, usage: "POST JSON { agent, message } to append a UI log line" });
+  });
+  app.post("/api/agent-progress", (req, res) => {
+    const agent = req.body?.agent;
+    const message = req.body?.message;
+    if (typeof agent !== "string" || typeof message !== "string") {
+      return res.status(400).json({ error: "JSON body must include string agent and message" });
+    }
+    addLog(agent, message, "info");
+    return res.status(204).end();
   });
 
   app.post("/api/orchestrate", async (req, res) => {

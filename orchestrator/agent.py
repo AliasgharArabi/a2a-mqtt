@@ -15,6 +15,7 @@ from a2a.client.helpers import create_text_message_object
 from a2a.types import Message, Role, Task, TextPart
 
 from model_env import model_kwargs
+from transport.agent_progress import emit_agent_progress
 
 RESEARCHER_URL = "http://localhost:9101"
 WRITER_URL = "http://localhost:9102"
@@ -74,13 +75,20 @@ async def _send_a2a_text(agent_base_url: str, text: str) -> str:
 
 
 def _invoke_remote_agent(agent_url: str, text: str) -> str:
+    base = agent_url.rstrip("/")
+    if base == RESEARCHER_URL.rstrip("/"):
+        emit_agent_progress("Researcher", "Calling researcher A2A agent…")
+    elif base == WRITER_URL.rstrip("/"):
+        emit_agent_progress("Writer", "Calling writer A2A agent…")
     return run_async(lambda: _send_a2a_text(agent_url, text))
 
 
 @tool
 def call_researcher(topic: str) -> str:
     """Delegate to the remote Researcher A2A agent."""
-    return _invoke_remote_agent(RESEARCHER_URL, topic)
+    outline = _invoke_remote_agent(RESEARCHER_URL, topic)
+    emit_agent_progress("Orchestrator", "Research complete; handing off to writer…")
+    return outline
 
 
 @tool

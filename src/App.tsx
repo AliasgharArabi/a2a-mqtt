@@ -42,7 +42,7 @@ export default function App() {
       }
     };
 
-    const interval = setInterval(fetchLogs, 1000);
+    const interval = setInterval(fetchLogs, 400);
     return () => clearInterval(interval);
   }, []);
 
@@ -51,12 +51,12 @@ export default function App() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
     
-    // Determine active agent from latest log
+    // Drive agent highlights from latest server log (names must match Agent Network nodes).
     if (logs.length > 0) {
       const lastLog = logs[logs.length - 1];
       if (lastLog.type === 'info') {
-        setActiveAgent(lastLog.agent);
-      } else if (lastLog.type === 'success') {
+        setActiveAgent(mapLogAgentToNetworkNode(lastLog.agent));
+      } else if (lastLog.type === 'success' || lastLog.type === 'error') {
         setActiveAgent(null);
       }
     }
@@ -278,6 +278,13 @@ function AgentNode({ icon, name, role, isActive, status }: {
       </div>
     </div>
   );
+}
+
+/** Map server log `agent` labels to Agent Network node names (Orchestrator / Researcher / Writer). */
+function mapLogAgentToNetworkNode(agent: string): string | null {
+  if (agent === 'Python-Orchestrator') return 'Orchestrator';
+  if (agent === 'Orchestrator' || agent === 'Researcher' || agent === 'Writer') return agent;
+  return null;
 }
 
 function getAgentColor(agent: string) {
