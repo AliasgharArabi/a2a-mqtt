@@ -1,0 +1,6 @@
+strands-agents[a2a]
+a2a-python
+paho-mqtt
+requests
+# SSO / aws login credential profiles need the CRT extras (avoids NoCredentialsError with IAM Identity Center)
+botocore[crt]

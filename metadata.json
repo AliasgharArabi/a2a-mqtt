@@ -1,0 +1,5 @@
+{
+  "name": "Strands Python Orchestrator",
+  "description": "A multi-agent orchestrator example using Strands SDK, A2A, and MQTT in Python.",
+  "requestFramePermissions": []
+}

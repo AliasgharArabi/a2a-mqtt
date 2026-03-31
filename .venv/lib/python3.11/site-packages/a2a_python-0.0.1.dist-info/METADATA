@@ -1,0 +1,36 @@
+Metadata-Version: 2.4
+Name: a2a-python
+Version: 0.0.1
+Summary: Python A2A Implementation
+Home-page: https://github.com/lukehinds/a2a-python
+Author: Luke Hinds
+Author-email: lukehinds@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: requires-python
+Dynamic: summary
+
+# a2a-python
+
+A simple placeholder package for PyPI registration. This package is intended to serve as a template for creating and registering Python packages on PyPI.
+
+## Installation
+
+To install this package, use pip:
+
+```
+pip install a2a-python
+```
+
+## Usage
+
+This package currently does not provide any functionality. It is a placeholder for demonstration purposes. 
