@@ -143,7 +143,7 @@ orchestrator = Agent(
     description="Coordinates research and writing agents to produce complete articles.",
     system_prompt=ORCHESTRATOR_PROMPT,
     tools=[call_researcher, call_writer],
-    **model_kwargs(role="orchestrator"),
+    **model_kwargs(agent_name="orchestrator"),
 )
 
 apply_ui_stream_patch()

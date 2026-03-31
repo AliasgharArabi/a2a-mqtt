@@ -22,7 +22,7 @@ writer = Agent(
     # Allow re-entrant A2A requests so a second call while the first is in-flight
     # does not raise ConcurrencyException.
     concurrent_invocation_mode=ConcurrentInvocationMode.UNSAFE_REENTRANT,
-    **model_kwargs(role="worker"),
+    **model_kwargs(agent_name="writer"),
 )
 
 # Expose as A2A Server

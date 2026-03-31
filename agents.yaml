@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────────
+# Agent model configuration
+#
+# Changes here take effect after restarting the affected agent
+# process (the model object is built once at startup).
+#
+# Bedrock model IDs use the cross-region inference profile format,
+# e.g. us.anthropic.claude-opus-4-5, us.anthropic.claude-3-5-haiku-20241022-v1:0
+# Full list: https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
+#
+# Environment variables always override values here:
+#   STRANDS_MODEL_ID_ORCHESTRATOR
+#   STRANDS_MODEL_ID_RESEARCHER
+#   STRANDS_MODEL_ID_WRITER
+#   STRANDS_BEDROCK_MAX_TOKENS_ORCHESTRATOR
+#   STRANDS_BEDROCK_MAX_TOKENS_WORKER
+# ─────────────────────────────────────────────────────────────────
+
+bedrock:
+  orchestrator:
+    model_id: "amazon.nova-lite-v1:0"
+    max_tokens: 4000
+
+  researcher:
+    model_id: "amazon.nova-lite-v1:0"
+    max_tokens: 8000
+
+  writer:
+    model_id: "amazon.nova-lite-v1:0"
+    max_tokens: 8000

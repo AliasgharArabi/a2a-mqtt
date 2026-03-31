@@ -20,7 +20,7 @@ researcher = Agent(
         "challenges, and future outlook. Write the outline directly — do not use any tools."
     ),
     concurrent_invocation_mode=ConcurrentInvocationMode.UNSAFE_REENTRANT,
-    **model_kwargs(role="worker"),
+    **model_kwargs(agent_name="researcher"),
 )
 
 # Expose as A2A Server
