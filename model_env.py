@@ -14,15 +14,43 @@ Bedrock profile resolution (when STRANDS_MODEL_PROVIDER is unset):
 
   STRANDS_AWS_REGION / AWS_REGION / AWS_DEFAULT_REGION should match your Bedrock region; SSO refresh
   fails with NoRegionError if none of these are set and the profile has no region.
+
+  Bedrock max output tokens (per model response) by role — defaults: orchestrator 4000, worker 2000.
+  Override with STRANDS_BEDROCK_MAX_TOKENS_ORCHESTRATOR / STRANDS_BEDROCK_MAX_TOKENS_WORKER.
 """
 
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, Literal
+
+AgentRole = Literal["orchestrator", "worker"]
+
+# Defaults requested for this project (researcher + writer use role "worker").
+BEDROCK_MAX_TOKENS_ORCHESTRATOR_DEFAULT = 4000
+BEDROCK_MAX_TOKENS_WORKER_DEFAULT = 8000
 
 
-def _bedrock_model_kwargs() -> dict[str, Any]:
+def _bedrock_max_tokens(role: AgentRole) -> int:
+    if role == "orchestrator":
+        raw = os.environ.get(
+            "STRANDS_BEDROCK_MAX_TOKENS_ORCHESTRATOR",
+            str(BEDROCK_MAX_TOKENS_ORCHESTRATOR_DEFAULT),
+        ).strip()
+        fallback = BEDROCK_MAX_TOKENS_ORCHESTRATOR_DEFAULT
+    else:
+        raw = os.environ.get(
+            "STRANDS_BEDROCK_MAX_TOKENS_WORKER",
+            str(BEDROCK_MAX_TOKENS_WORKER_DEFAULT),
+        ).strip()
+        fallback = BEDROCK_MAX_TOKENS_WORKER_DEFAULT
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return fallback
+
+
+def _bedrock_model_kwargs(role: AgentRole) -> dict[str, Any]:
     import boto3
     from strands.models.bedrock import BedrockModel
 
@@ -46,10 +74,15 @@ def _bedrock_model_kwargs() -> dict[str, Any]:
     if not region:
         region = "us-east-1"
     session = boto3.Session(profile_name=profile, region_name=region)
-    return {"model": BedrockModel(boto_session=session)}
+    return {
+        "model": BedrockModel(
+            boto_session=session,
+            max_tokens=_bedrock_max_tokens(role),
+        ),
+    }
 
 
-def model_kwargs() -> dict[str, Any]:
+def model_kwargs(*, role: AgentRole = "worker") -> dict[str, Any]:
     provider = (os.environ.get("STRANDS_MODEL_PROVIDER") or "").strip().lower()
     if provider == "ollama":
         from strands.models.ollama import OllamaModel
@@ -64,4 +97,4 @@ def model_kwargs() -> dict[str, Any]:
 
         model_id = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
         return {"model": OpenAIModel(model_id=model_id)}
-    return _bedrock_model_kwargs()
+    return _bedrock_model_kwargs(role)

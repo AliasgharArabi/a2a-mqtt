@@ -5,22 +5,24 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from strands import Agent, tool
+from strands import Agent
 from strands.multiagent.a2a import A2AServer
+from strands.types.agent import ConcurrentInvocationMode
 
 from model_env import model_kwargs
-
-@tool
-def expand_outline(outline: str) -> str:
-    """Turn a bullet outline into a short article."""
-    return f"Full Article based on:\n{outline}\n\nThis is a detailed expansion of the research provided."
 
 writer = Agent(
     name="writer",
     description="Specialized agent that expands bullet outlines into readable articles.",
-    system_prompt="You are a writing agent that expands outlines into articles.",
-    tools=[expand_outline],
-    **model_kwargs(),
+    system_prompt=(
+        "You are a writing agent. When given a research outline, write a clear, "
+        "well-structured article that expands on every section. "
+        "Write the article directly — do not use any tools."
+    ),
+    # Allow re-entrant A2A requests so a second call while the first is in-flight
+    # does not raise ConcurrencyException.
+    concurrent_invocation_mode=ConcurrentInvocationMode.UNSAFE_REENTRANT,
+    **model_kwargs(role="worker"),
 )
 
 # Expose as A2A Server

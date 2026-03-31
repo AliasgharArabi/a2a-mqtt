@@ -9,7 +9,8 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Activity,
-  Cpu
+  Cpu,
+  ScrollText,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -21,8 +22,17 @@ interface Log {
   type: 'info' | 'success' | 'error';
 }
 
+interface AgentStreams {
+  Orchestrator: string;
+  Researcher: string;
+  Writer: string;
+}
+
+const EMPTY_STREAMS: AgentStreams = { Orchestrator: '', Researcher: '', Writer: '' };
+
 export default function App() {
   const [logs, setLogs] = useState<Log[]>([]);
+  const [streams, setStreams] = useState<AgentStreams>(EMPTY_STREAMS);
   const [input, setInput] = useState('');
   const [result, setResult] = useState<string | null>(null);
   const [resultError, setResultError] = useState<string | null>(null);
@@ -32,17 +42,21 @@ export default function App() {
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchLogs = async () => {
+    const tick = async () => {
       try {
-        const res = await fetch('/api/logs');
-        const data = await res.json();
-        setLogs(data);
+        const [logsRes, streamsRes] = await Promise.all([
+          fetch('/api/logs'),
+          fetch('/api/agent-streams'),
+        ]);
+        if (logsRes.ok) setLogs(await logsRes.json());
+        if (streamsRes.ok) setStreams(await streamsRes.json());
       } catch (e) {
-        console.error('Failed to fetch logs');
+        console.error('Failed to fetch UI state');
       }
     };
 
-    const interval = setInterval(fetchLogs, 400);
+    const interval = setInterval(tick, 400);
+    tick();
     return () => clearInterval(interval);
   }, []);
 
@@ -69,6 +83,7 @@ export default function App() {
     setIsProcessing(true);
     setResult(null);
     setResultError(null);
+    setStreams(EMPTY_STREAMS);
     try {
       const res = await fetch('/api/orchestrate', {
         method: 'POST',
@@ -201,10 +216,10 @@ export default function App() {
           )}
         </div>
 
-        {/* Right Column: Terminal Logs */}
-        <div className="lg:col-span-7 flex flex-col h-[calc(100vh-12rem)]">
-          <div className="bg-black border border-zinc-800 rounded-2xl flex-1 flex flex-col overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/30">
+        {/* Right Column: Terminal + per-agent stream panels */}
+        <div className="lg:col-span-7 flex flex-col gap-4 min-h-0 h-[calc(100vh-12rem)]">
+          <div className="bg-black border border-zinc-800 rounded-2xl flex-[1.15] min-h-[200px] flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/30 shrink-0">
               <div className="flex items-center gap-2">
                 <Terminal className="w-4 h-4 text-orange-500" />
                 <span className="text-xs font-mono font-semibold uppercase tracking-wider">System Event Stream</span>
@@ -218,7 +233,7 @@ export default function App() {
             
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-2 scrollbar-thin scrollbar-thumb-zinc-800"
+              className="flex-1 min-h-0 overflow-y-auto p-4 font-mono text-xs space-y-2 scrollbar-thin scrollbar-thumb-zinc-800"
             >
               <AnimatePresence initial={false}>
                 {logs.length === 0 && (
@@ -243,8 +258,84 @@ export default function App() {
               </AnimatePresence>
             </div>
           </div>
+
+          <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl flex-1 min-h-[260px] flex flex-col overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800 bg-zinc-900/30 shrink-0">
+              <ScrollText className="w-4 h-4 text-zinc-500" />
+              <h2 className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-500">Agent output streams</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 flex-1 min-h-0">
+              <StreamPanel
+                title="Orchestrator"
+                icon={<Bot className="w-3.5 h-3.5" />}
+                text={streams.Orchestrator}
+                accent="orange"
+              />
+              <StreamPanel
+                title="Researcher"
+                icon={<Search className="w-3.5 h-3.5" />}
+                text={streams.Researcher}
+                accent="blue"
+              />
+              <StreamPanel
+                title="Writer"
+                icon={<PenTool className="w-3.5 h-3.5" />}
+                text={streams.Writer}
+                accent="emerald"
+              />
+            </div>
+          </section>
         </div>
       </main>
+    </div>
+  );
+}
+
+function StreamPanel({
+  title,
+  icon,
+  text,
+  accent,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  text: string;
+  accent: 'orange' | 'blue' | 'emerald';
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = panelRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [text]);
+
+  const borderClass =
+    accent === 'orange'
+      ? 'border-orange-500/25'
+      : accent === 'blue'
+        ? 'border-blue-500/25'
+        : 'border-emerald-500/25';
+  const headerClass =
+    accent === 'orange'
+      ? 'text-orange-400/90'
+      : accent === 'blue'
+        ? 'text-blue-400/90'
+        : 'text-emerald-400/90';
+
+  return (
+    <div className={`flex flex-col min-h-[180px] h-full max-h-[min(40vh,420px)] rounded-xl border bg-black/50 overflow-hidden ${borderClass}`}>
+      <div
+        className={`px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider border-b border-zinc-800/80 flex items-center gap-2 shrink-0 ${headerClass}`}
+      >
+        {icon}
+        {title}
+      </div>
+      <div
+        ref={panelRef}
+        className="flex-1 min-h-0 overflow-y-scroll p-3 text-xs font-mono text-zinc-400 leading-relaxed whitespace-pre-wrap break-words [scrollbar-color:rgb(39_39_42)_rgb(24_24_27)] [scrollbar-gutter:stable]"
+      >
+        {text ? text : <span className="text-zinc-600 italic">No output yet</span>}
+      </div>
     </div>
   );
 }

@@ -136,6 +136,23 @@ async function startServer() {
   const logs: { id: number; timestamp: string; agent: string; message: string; type: string }[] = [];
   let mqttClient: mqtt.MqttClient | null = null;
 
+  type AgentStreamKey = "Orchestrator" | "Researcher" | "Writer";
+  const agentStreams: Record<AgentStreamKey, string> = {
+    Orchestrator: "",
+    Researcher: "",
+    Writer: "",
+  };
+
+  function isAgentStreamKey(s: string): s is AgentStreamKey {
+    return s === "Orchestrator" || s === "Researcher" || s === "Writer";
+  }
+
+  function clearAgentStreams() {
+    agentStreams.Orchestrator = "";
+    agentStreams.Researcher = "";
+    agentStreams.Writer = "";
+  }
+
   const addLog = (agent: string, message: string, type: "info" | "success" | "error" = "info") => {
     const log = { id: Date.now(), timestamp: new Date().toISOString(), agent, message, type };
     logs.push(log);
@@ -172,6 +189,7 @@ async function startServer() {
       return;
     }
     addLog("Gateway", `MQTT request: ${input.slice(0, 80)}${input.length > 80 ? "…" : ""}`);
+    clearAgentStreams();
     const r = await callPythonOrchestrator(input);
     if (!r.ok) {
       addLog("Gateway", r.error || "Orchestrator failed", "error");
@@ -217,11 +235,35 @@ async function startServer() {
     return res.status(204).end();
   });
 
+  /** Incremental agent output for the Agent output streams panel (Python → POST chunks). */
+  app.post("/api/agent-stream", (req, res) => {
+    const agent = req.body?.agent;
+    const chunk = req.body?.chunk;
+    const append = req.body?.append !== false;
+    if (typeof agent !== "string" || typeof chunk !== "string") {
+      return res.status(400).json({ error: "JSON body must include string agent and chunk" });
+    }
+    if (!isAgentStreamKey(agent)) {
+      return res.status(400).json({ error: "agent must be Orchestrator, Researcher, or Writer" });
+    }
+    if (append) {
+      agentStreams[agent] += chunk;
+    } else {
+      agentStreams[agent] = chunk;
+    }
+    return res.status(204).end();
+  });
+
+  app.get("/api/agent-streams", (_req, res) => {
+    res.json({ ...agentStreams });
+  });
+
   app.post("/api/orchestrate", async (req, res) => {
     const input = req.body?.input;
     if (!input || typeof input !== "string") {
       return res.status(400).json({ error: "JSON body must include string input" });
     }
+    clearAgentStreams();
     addLog("Python-Orchestrator", `A2A message/send → ${ORCHESTRATOR_A2A_URL}`);
     const r = await callPythonOrchestrator(input);
     if (!r.ok) {

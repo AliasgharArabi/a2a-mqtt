@@ -7,22 +7,20 @@ if str(_ROOT) not in sys.path:
 
 from strands import Agent, tool
 from strands.multiagent.a2a import A2AServer
+from strands.types.agent import ConcurrentInvocationMode
 
 from model_env import model_kwargs
-
-@tool
-def research_topic(topic: str) -> str:
-    """Produce a short bullet-point outline about the given topic."""
-    # In a real scenario, this would call an LLM or search tool.
-    # For this example, we return a mock outline.
-    return f"Outline for {topic}:\n1. Introduction to {topic}\n2. Key benefits\n3. Future outlook"
 
 researcher = Agent(
     name="researcher",
     description="Specialized agent that creates structured research outlines for any topic.",
-    system_prompt="You are a research agent who creates structured outlines.",
-    tools=[research_topic],
-    **model_kwargs(),
+    system_prompt=(
+        "You are a research agent. When given a topic, produce a thorough, "
+        "well-structured bullet-point outline covering key aspects, benefits, "
+        "challenges, and future outlook. Write the outline directly — do not use any tools."
+    ),
+    concurrent_invocation_mode=ConcurrentInvocationMode.UNSAFE_REENTRANT,
+    **model_kwargs(role="worker"),
 )
 
 # Expose as A2A Server
