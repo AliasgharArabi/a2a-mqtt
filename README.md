@@ -1,20 +1,77 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# a2a-mqtt
 
-# Run and deploy your AI Studio app
+Example multi-agent setup using the **Strands Agent SDK** with **A2A** (Agent-to-Agent) JSON-RPC between processes, **MQTT** for live progress in the UI, and **YAML + environment**-driven model configuration (Amazon Bedrock by default; OpenAI or Ollama optional).
 
-This contains everything you need to run your app locally.
+**Repository:** [github.com/AliasgharArabi/a2a-mqtt](https://github.com/AliasgharArabi/a2a-mqtt)
 
-View your app in AI Studio: https://ai.studio/apps/66c30aea-b0d8-4fde-ab79-66894aaac97c
+## What runs where
 
-## Run Locally
+| Component | Entry | Port | Role |
+|-----------|--------|------|------|
+| Researcher | `python workers/researcher.py` | 9101 | A2A worker — research outline |
+| Writer | `python workers/writer.py` | 9102 | A2A worker — article draft |
+| Orchestrator | `python orchestrator/agent.py` | 9200 | A2A coordinator; calls researcher & writer |
+| Web UI | `npm run dev` | 3000 (`PORT`) | React + Vite; Express dev server; optional MQTT broker on 1883 |
 
-**Prerequisites:**  Node.js
+The UI sends **A2A** `message/send` to the orchestrator (`ORCHESTRATOR_A2A_URL`, default `http://127.0.0.1:9200/`).
 
+## Prerequisites
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- **Node.js** 18+ (for the UI / dev server)
+- **Python** 3.11+
+- **Model backend** — default path is **Amazon Bedrock** (AWS credentials / profile and region). For local alternatives, set `STRANDS_MODEL_PROVIDER` to `openai` or `ollama` and configure keys/host as described in [`model_env.py`](model_env.py).
+
+## Setup
+
+**Python**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+**Node**
+
+```bash
+npm install
+```
+
+**Environment**
+
+- Copy [`.env.example`](.env.example) to `.env.local` if you use UI env vars (e.g. `GEMINI_API_KEY`, `APP_URL` for hosted setups).
+- Per-agent Bedrock model IDs and `max_tokens` are in [`agents.yaml`](agents.yaml); env vars override them (see comments in `agents.yaml` and `model_env.py`).
+
+## Run locally
+
+Start the three Python A2A servers first, then the UI (four terminals):
+
+```bash
+# Terminal 1
+source .venv/bin/activate && python workers/researcher.py
+
+# Terminal 2
+source .venv/bin/activate && python workers/writer.py
+
+# Terminal 3
+source .venv/bin/activate && python orchestrator/agent.py
+
+# Terminal 4
+npm run dev
+```
+
+Open **http://localhost:3000** (unless `PORT` is set).
+
+### MQTT
+
+The dev server can embed an MQTT broker on **1883** (`UI_MQTT_PORT`). Set `EMBEDDED_MQTT=0` or `false` to use an external broker. `MQTT_ORG` defaults to `demo-org`.
+
+## Project layout (high level)
+
+- `orchestrator/` — orchestrator agent + A2A server + streaming UI patch  
+- `workers/` — researcher and writer A2A servers  
+- `transport/` — MQTT / progress helpers  
+- `src/` — React chat UI  
+- `server.ts` — Express + Vite middleware, MQTT, orchestrator proxy  
+
+For deeper stack notes (AWS profile resolution, Ollama/OpenAI), see [`model_env.py`](model_env.py).
